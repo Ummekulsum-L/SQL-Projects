@@ -1,0 +1,156 @@
+COVID SQL Analysis
+SQL project for COVID data exploration involve analyzing dataset containing information about COVID cases and deaths in various regions or countries. The first step was to import the dataset into SQL database and create a table to store the data. The table include fields for relevant information such as region, date, confirmed cases, deaths, and testing rates. Once the data is stored in the SQL database, various queries and analyses was performed to gain insights into the data. For example, an SQL query was written to retrieve the total number of COVID cases and deaths for a particular region or country.
+
+Additionally an SQL queries was used to compare COVID data across different regions or countries, identify trends or patterns in the data, and then visualize the data using Tableau.
+
+Overall, this SQL project for COVID data exploration was able to provide valuable insights into the spread and impact of the COVID pandemic, as well as inform policy and public health decisions.
+
+Covid-SQL
+
+Covid 19 Data Exploration 
+Skills used: Joins, CTE's, Temp Tables, Windows Functions, Aggregate Functions, Creating Views, Converting Data Types
+
+SELECT *
+FROM Covid.dbo.Deaths
+WHERE continent is not null
+ORDER BY 3,4
+
+SELECT *
+FROM Covid.dbo.Vaccines
+ORDER BY 3,4
+
+--Select data that we are going to be using
+
+SELECT location, date, total_cases,new_cases, total_deaths, population
+FROM Covid.dbo.Deaths
+ORDER BY 1,2
+
+
+--Looking at Total Cases VS Total Deaths 
+--Shows likelihood of dying if you contract covid in ones country
+SELECT location, date, total_cases, total_deaths,(total_deaths/total_cases)*100 AS DeathPercentage
+FROM Covid.dbo.Deaths
+WHERE location like '%states%'
+ORDER BY 1,2
+
+--Looking at Total Cases VS Population
+--Shows what percentage of population got Covid
+SELECT location, date, total_cases, population,(total_cases/population)*100 AS PercentPopulationInfected
+FROM Covid.dbo.Deaths
+--WHERE location like '%states%'
+ORDER BY 1,2
+
+
+-- Looking at Countries with Highest Infection Rate compared to Population
+
+SELECT location, Population, MAX(total_cases) AS HighestInfectionCount, MAX((total_cases/population))*100 AS PercentPopulationInfected
+FROM Covid.dbo.Deaths
+--WHERE location like '%states%'
+GROUP BY location, Population
+ORDER BY PercentPopulationInfected DESC
+
+
+-- Showing Countries with Highest Death Count Per Population
+SELECT location, MAX(CAST(Total_Deaths as int)) AS TotalDeathCount
+FROM Covid.dbo.Deaths
+--WHERE location like '%states%'
+WHERE continent is not null
+GROUP BY location
+ORDER BY TotalDeathCount DESC
+
+
+--USING CONTINENT:
+
+--Showing continents with the highest death count per population
+SELECT continent , MAX(CAST(Total_Deaths as int)) AS TotalDeathCount
+FROM Covid.dbo.Deaths
+--WHERE location like '%states%'
+WHERE continent is not null
+GROUP BY continent
+ORDER BY TotalDeathCount DESC
+
+
+
+--GLOBAL NUMBERS:
+SELECT SUM(new_cases)AS Total_Cases, SUM( CAST(new_deaths as INT))AS Total_Deaths,SUM( CAST(new_deaths as INT))/SUM(new_cases)*100 AS DeathPercentage
+FROM Covid.dbo.Deaths
+--WHERE location like '%states%'
+WHERE continent is not null
+--GROUP BY date
+ORDER BY 1,2
+
+-- Total Population vs Vaccinations
+-- Shows Percentage of Population that has recieved at least one Covid Vaccine
+
+Select dea.continent, dea.location, dea.date, dea.population, vac.new_vaccinations
+, SUM(CONVERT(bigint,vac.new_vaccinations)) OVER (Partition by dea.Location Order by dea.location, dea.Date) as RollingPeopleVaccinated
+--, (RollingPeopleVaccinated/population)*100
+From Covid.dbo.Deaths dea
+Join Covid.dbo.Vaccines vac
+	On dea.location = vac.location
+	and dea.date = vac.date
+where dea.continent is not null 
+order by 2,3
+
+
+-- Using CTE to perform Calculation on Partition By in previous query
+
+With PopvsVac (Continent, Location, Date, Population, New_Vaccinations, RollingPeopleVaccinated)
+as
+(
+Select dea.continent, dea.location, dea.date, dea.population, vac.new_vaccinations
+, SUM(CONVERT(bigint,vac.new_vaccinations)) OVER (Partition by dea.Location Order by dea.location, dea.Date) as RollingPeopleVaccinated
+--, (RollingPeopleVaccinated/population)*100
+From Covid.dbo.Deaths dea
+Join Covid.dbo.Vaccines vac
+	On dea.location = vac.location
+	and dea.date = vac.date
+where dea.continent is not null 
+--order by 2,3
+)
+Select *, (RollingPeopleVaccinated/Population)*100
+From PopvsVac
+
+
+-- Using Temp Table to perform Calculation on Partition By in previous query
+
+DROP Table if exists #PercentPopulationVaccinated
+Create Table #PercentPopulationVaccinated
+(
+Continent nvarchar(255),
+Location nvarchar(255),
+Date datetime,
+Population numeric,
+New_vaccinations numeric,
+RollingPeopleVaccinated numeric
+)
+
+Insert into #PercentPopulationVaccinated
+Select dea.continent, dea.location, dea.date, dea.population, vac.new_vaccinations
+, SUM(CONVERT(bigint,vac.new_vaccinations)) OVER (Partition by dea.Location Order by dea.location, dea.Date) as RollingPeopleVaccinated
+--, (RollingPeopleVaccinated/population)*100
+From Covid.dbo.Deaths dea
+Join Covid.dbo.Vaccines vac
+	On dea.location = vac.location
+	and dea.date = vac.date
+--where dea.continent is not null 
+--order by 2,3
+
+Select *, (RollingPeopleVaccinated/Population)*100
+From #PercentPopulationVaccinated
+
+
+-- Creating View to store data for later visualizations
+
+Create View PercentPopulationVaccinated as
+Select dea.continent, dea.location, dea.date, dea.population, vac.new_vaccinations
+, SUM(CONVERT(bigint,vac.new_vaccinations)) OVER (Partition by dea.Location Order by dea.location, dea.Date) as RollingPeopleVaccinated
+--, (RollingPeopleVaccinated/population)*100
+From Covid.dbo.Deaths dea
+Join Covid.dbo.Vaccines vac
+	On dea.location = vac.location
+	and dea.date = vac.date
+where dea.continent is not null 
+
+SELECT *
+FROM PercentPopulationVaccinated
