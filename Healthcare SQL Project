@@ -1,0 +1,107 @@
+Importing the Dataset
+
+DROP TABLE IF EXISTS healthcare_dataset;
+
+CREATE TABLE healthcare_dataset (
+    name VARCHAR(100),
+    age INT,
+    gender VARCHAR(10),
+    blood_type VARCHAR(5),
+    medical_condition VARCHAR(100),
+    date_of_admission DATE,
+    doctor VARCHAR(100),
+    hospital VARCHAR(150),
+    insurance_provider VARCHAR(100),
+    billing_amount FLOAT,
+    room_number INT,
+    admission_type VARCHAR(50),
+    discharge_date DATE,
+    medication VARCHAR(100),
+    test_results VARCHAR(50)
+);
+
+
+-- 1) List all the medical conditions in the dataset.
+SELECT DISTINCT medical_condition 
+FROM healthcare_dataset;
+
+-- 2) Count the total number of patients in the dataset.
+SELECT COUNT(*) AS Total_Patients 
+FROM healthcare_dataset;
+
+-- 3) Find the average age of the patients. 
+SELECT ROUND(AVG(age)) AS Average_Age
+FROM healthcare_dataset;
+
+-- 4) List all patients who have a blood type of "O+".
+SELECT * 
+FROM healthcare_dataset
+WHERE blood_type = 'O+';
+
+-- 5) Retrieve all admissions that occurred in 2024.
+SELECT *
+FROM healthcare_dataset
+WHERE EXTRACT(YEAR FROM date_of_admission) = 2024;
+
+-- 6) Find the total billing amount grouped by insurance provider.
+SELECT insurance_provider, ROUND(SUM(billing_amount)) AS total_billing
+FROM healthcare_dataset
+GROUP BY insurance_provider;
+
+-- 7) Identify the top 3 hospitals by the number of patients admitted.
+SELECT hospital, COUNT(*) AS patient_count
+FROM healthcare_dataset
+WHERE hospital IS NOT NULL
+GROUP BY hospital
+ORDER BY patient_count DESC
+LIMIT 3;
+
+-- 8) Get the most frequently prescribed medication and its count.
+SELECT medication, COUNT(*) AS count
+FROM healthcare_dataset
+GROUP BY medication
+ORDER BY count DESC
+LIMIT 1;
+
+-- 9) Calculate the readmission rate (percentage of patients admitted more than once).
+SELECT COUNT(DISTINCT name) FILTER (WHERE admission_count > 1) * 100.0 / COUNT(DISTINCT name) AS readmission_rate
+FROM (
+    SELECT name, COUNT(*) AS admission_count
+    FROM healthcare_dataset
+    GROUP BY name
+) subquery;
+
+-- 10) Find the top 3 medical conditions based on total billing amount.
+SELECT medical_condition, ROUND(SUM(billing_amount)) AS total_billing
+FROM healthcare_dataset
+GROUP BY medical_condition
+ORDER BY total_billing DESC
+LIMIT 3;
+
+-- 11) Analyze admissions by year and month to identify trends.
+SELECT EXTRACT(YEAR FROM date_of_admission) AS year, 
+       EXTRACT(MONTH FROM date_of_admission) AS month, 
+       COUNT(*) AS admission_count
+FROM healthcare_dataset
+GROUP BY year, month
+ORDER BY year, month;
+
+-- 12) Determine which doctor has handled the highest total billing amount.
+SELECT doctor, ROUND(SUM(billing_amount)) AS total_billing
+FROM healthcare_dataset
+GROUP BY doctor
+ORDER BY total_billing DESC
+LIMIT 1;
+
+-- 13) Identify the correlation between age groups and medical conditions.
+SELECT CASE 
+           WHEN age < 18 THEN 'Child'
+           WHEN age BETWEEN 18 AND 35 THEN 'Young Adult'
+           WHEN age BETWEEN 36 AND 60 THEN 'Adult'
+           ELSE 'Senior'
+       END AS age_group,
+       medical_condition, 
+       COUNT(*) AS count
+FROM healthcare_dataset
+GROUP BY age_group, medical_condition
+ORDER BY age_group, count DESC;
